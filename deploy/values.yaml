@@ -28,6 +28,7 @@ monitoring:
   enabled: true
 gateway:
   enabled: true
+  sectionName: https
   name: apps
   namespace: gateway-system
 routes:
