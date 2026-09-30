@@ -1,0 +1,6 @@
+gateway: {enabled: false}
+monitoring: {enabled: false}
+workloads:
+  frontend: null
+  api: null
+  cronjob: null

@@ -1,0 +1,65 @@
+app: acceptance
+environment: production
+environmentKind: production
+expiresAt: ''
+host: acceptance.apps.makima.sbs
+publicPaths: ['^/$', '^/api(/.*)?$', '^/assets(/.*)?$']
+image:
+  repository: ghcr.io/yinlerens/application-template
+  digest: ''
+  pullPolicy: IfNotPresent
+  pullSecret: ghcr-pull
+releaseVersion: initial
+quota:
+  requests.cpu: '600m'
+  requests.memory: 1Gi
+  limits.memory: 3Gi
+  pods: '8'
+  services: '5'
+database:
+  enabled: true
+  namespace: data-system
+  cluster: postgres
+  host: postgres-rw.data-system.svc
+  name: acceptance
+  secret: acceptance-db
+telemetryEndpoint: http://alloy.observability.svc:4318
+monitoring:
+  enabled: true
+gateway:
+  enabled: true
+  name: apps
+  namespace: gateway-system
+routes:
+  - {path: /api, workload: api}
+  - {path: /, workload: frontend}
+workloads:
+  frontend:
+    kind: Deployment
+    role: frontend
+    http: true
+    requests: {cpu: 50m, memory: 96Mi}
+    limits: {memory: 256Mi}
+    database: false
+  api:
+    kind: Deployment
+    role: api
+    http: true
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {memory: 512Mi}
+    database: true
+  worker:
+    kind: Deployment
+    role: worker
+    command: [python, -m, src.app]
+    requests: {cpu: 50m, memory: 96Mi}
+    limits: {memory: 256Mi}
+    database: true
+  cronjob:
+    kind: CronJob
+    role: cronjob
+    schedule: '*/5 * * * *'
+    command: [python, -m, src.app]
+    requests: {cpu: 50m, memory: 96Mi}
+    limits: {memory: 256Mi}
+    database: true

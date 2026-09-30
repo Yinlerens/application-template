@@ -1,0 +1,5 @@
+routes: [{path: /api, workload: api}]
+workloads:
+  frontend: null
+  worker: null
+  cronjob: null

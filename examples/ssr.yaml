@@ -1,0 +1,16 @@
+# Node SSR server must bind 0.0.0.0:8080, expose probes and write temporary files in /tmp.
+database: {enabled: false}
+publicPaths: ['^/$', '^/api(/.*)?$', '^/assets(/.*)?$', '^/_next(/.*)?$']
+routes: [{path: /, workload: frontend}]
+workloads:
+  api: null
+  worker: null
+  cronjob: null
+  frontend:
+    kind: Deployment
+    role: frontend
+    http: true
+    database: false
+    command: [node, server.mjs]
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}

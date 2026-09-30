@@ -1,0 +1,15 @@
+# Supply your immutable image digest. The server must bind 8080 and provide /healthz.
+database: {enabled: false}
+publicPaths: ['^/$', '^/index\.html$', '^/assets(/.*)?$', '^/favicon\.ico$']
+routes: [{path: /, workload: frontend}]
+workloads:
+  api: null
+  worker: null
+  cronjob: null
+  frontend:
+    kind: Deployment
+    role: frontend
+    http: true
+    database: false
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 256Mi}
