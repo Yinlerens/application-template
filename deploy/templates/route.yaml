@@ -6,6 +6,8 @@ metadata:
 spec:
   parentRefs:
     - name: {{ .Values.gateway.name }}
+      group: gateway.networking.k8s.io
+      kind: Gateway
       namespace: {{ .Values.gateway.namespace }}
       {{- with .Values.gateway.sectionName }}
       sectionName: {{ . | quote }}
@@ -19,6 +21,6 @@ spec:
     - matches:
         - path: {type: PathPrefix, value: {{ .path | quote }}}
       backendRefs:
-        - {name: {{ $.Values.app }}-{{ .workload }}, port: 80}
+        - {name: {{ $.Values.app }}-{{ .workload }}, group: '', kind: Service, port: 80, weight: 1}
     {{- end }}
 {{- end }}
