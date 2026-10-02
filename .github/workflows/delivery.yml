@@ -113,7 +113,13 @@ jobs:
           IMAGE: ${{ needs.build.outputs.image }}
           IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
         run: |
-          pip install PyYAML==6.0.3
+          pip install PyYAML==6.0.3 ruamel.yaml==0.19.1
           python scripts/update_gitops.py
-      - name: Verify deployed version and business smoke test
-        run: python scripts/wait_release.py
+      - name: Verify desired state, deployment and business smoke test
+        env:
+          APP_NAME: acceptance
+          FOUNDATION_TOKEN: ${{ secrets.FOUNDATION_RELEASE_TOKEN }}
+          ARGO_READ_TOKEN: ${{ secrets.ARGO_READ_TOKEN }}
+        run: |
+          python scripts/wait_application.py
+          python scripts/wait_release.py

@@ -1,6 +1,10 @@
 {{- define "application.pod" -}}
 {{- $root := .root -}}
-automountServiceAccountToken: false
+{{- $image := .workload.image | default $root.Values.image -}}
+automountServiceAccountToken: {{ if .workload.serviceAccount }}true{{ else }}false{{ end }}
+{{- with .workload.serviceAccount }}
+serviceAccountName: {{ . }}
+{{- end }}
 securityContext:
   runAsNonRoot: true
   runAsUser: 10001
@@ -14,10 +18,16 @@ imagePullSecrets:
 {{- end }}
 containers:
   - name: {{ .name }}
-    image: {{ printf "%s@%s" $root.Values.image.repository (required "An immutable image digest is required" $root.Values.image.digest) | quote }}
-    imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+    image: {{ printf "%s@%s" $image.repository (required "An immutable image digest is required" $image.digest) | quote }}
+    imagePullPolicy: {{ $image.pullPolicy | default "IfNotPresent" }}
     {{- with .workload.command }}
     command: {{ toJson . }}
+    {{- end }}
+    {{- with .workload.args }}
+    args: {{ toJson . }}
+    {{- end }}
+    {{- with .workload.envFrom }}
+    envFrom: {{ toJson . }}
     {{- end }}
     securityContext:
       allowPrivilegeEscalation: false
@@ -28,6 +38,7 @@ containers:
       requests: {{ toJson .workload.requests }}
       limits: {{ toJson .workload.limits }}
     env:
+      - {name: APP_NAME, value: {{ $root.Values.app | quote }}}
       - {name: APP_ENVIRONMENT, value: {{ $root.Values.environment | quote }}}
       - {name: WORKLOAD_ROLE, value: {{ .workload.role | quote }}}
       - {name: RELEASE_VERSION, value: {{ $root.Values.releaseVersion | quote }}}
@@ -42,9 +53,17 @@ containers:
         valueFrom:
           secretKeyRef: {name: {{ $root.Values.database.secret }}, key: password}
       {{- end }}
+    {{- range $key, $value := .workload.env }}
+      - {name: {{ $key | quote }}, value: {{ $value | toString | quote }}}
+    {{- end }}
+    {{- range $key, $ref := .workload.secretEnv }}
+      - name: {{ $key | quote }}
+        valueFrom:
+          secretKeyRef: {name: {{ $ref.name | quote }}, key: {{ $ref.key | quote }}}
+    {{- end }}
     {{- if .workload.http }}
     ports:
-      - {name: http, containerPort: 8080}
+      - {name: http, containerPort: {{ .workload.port | default 8080 }}}
     startupProbe:
       httpGet: {path: {{ .workload.healthPath | default "/healthz" }}, port: http}
       failureThreshold: 30
@@ -55,7 +74,9 @@ containers:
     livenessProbe:
       httpGet: {path: {{ .workload.healthPath | default "/healthz" }}, port: http}
       periodSeconds: 20
-    {{- else if and $root.Values.database.enabled (eq .workload.role "worker") }}
+    {{- else if .workload.livenessProbe }}
+    livenessProbe: {{ toJson .workload.livenessProbe }}
+    {{- else if and $root.Values.database.enabled (eq .workload.role "worker") (not .workload.disableLegacyProbe) }}
     livenessProbe:
       exec:
         command:
@@ -68,8 +89,14 @@ containers:
     {{- end }}
     volumeMounts:
       - {name: tmp, mountPath: /tmp}
+      {{- with .workload.volumeMounts }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
 volumes:
   - name: tmp
     emptyDir:
       sizeLimit: 128Mi
+  {{- with .workload.volumes }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
 {{- end -}}

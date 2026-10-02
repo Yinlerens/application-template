@@ -16,6 +16,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 VERSION = os.getenv('RELEASE_VERSION', 'development')
+APP_NAME = os.getenv('APP_NAME', 'acceptance')
 ROLE = os.getenv('WORKLOAD_ROLE', 'api')
 ENVIRONMENT = os.getenv('APP_ENVIRONMENT', 'development')
 requests = Counter('foundation_http_requests_total', 'HTTP requests', ['method', 'path', 'status'])
@@ -44,7 +45,7 @@ async def lifespan(_):
 app = FastAPI(lifespan=lifespan)
 if os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT'):
     provider = TracerProvider(resource=Resource.create({
-        'service.name': f'acceptance-{ROLE}', 'service.version': VERSION,
+        'service.name': f'{APP_NAME}-{ROLE}', 'service.version': VERSION,
         'deployment.environment.name': ENVIRONMENT}))
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(provider)
@@ -59,7 +60,7 @@ async def structured_logging(request: Request, call_next):
     requests.labels(request.method, path, response.status_code).inc()
     span = trace.get_current_span().get_span_context()
     print(json.dumps({'request_id': request_id, 'trace_id': f'{span.trace_id:032x}',
-                      'app': 'acceptance', 'environment': ENVIRONMENT, 'version': VERSION,
+                      'app': APP_NAME, 'environment': ENVIRONMENT, 'version': VERSION,
                       'method': request.method, 'path': path, 'status': response.status_code}, separators=(',', ':')), flush=True)
     response.headers['x-request-id'] = request_id
     response.headers['x-release-version'] = VERSION
@@ -116,6 +117,6 @@ if __name__ == '__main__':
     initialize_database()
     while True:
         write_event(ROLE)
-        print(json.dumps({'app': 'acceptance', 'role': ROLE, 'version': VERSION, 'event': 'database-write'}), flush=True)
+        print(json.dumps({'app': APP_NAME, 'role': ROLE, 'version': VERSION, 'event': 'database-write'}), flush=True)
         if ROLE == 'cronjob': break
         time.sleep(30)

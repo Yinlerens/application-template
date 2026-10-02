@@ -34,7 +34,11 @@ spec:
     - fromEntities: [ingress]
       toPorts:
         - ports:
-            - {port: '8080', protocol: TCP}
+            {{- range $name, $workload := .Values.workloads }}
+            {{- if $workload.http }}
+            - {port: {{ $workload.port | default 8080 | toString | quote }}, protocol: TCP}
+            {{- end }}
+            {{- end }}
           rules:
             http:
               {{- range .Values.publicPaths }}
@@ -45,7 +49,11 @@ spec:
             k8s:io.kubernetes.pod.namespace: observability
       toPorts:
         - ports:
-            - {port: '8080', protocol: TCP}
+            {{- range $name, $workload := .Values.workloads }}
+            {{- if $workload.http }}
+            - {port: {{ $workload.port | default 8080 | toString | quote }}, protocol: TCP}
+            {{- end }}
+            {{- end }}
   egress:
     - toEndpoints:
         - matchLabels:
@@ -55,6 +63,9 @@ spec:
         - ports:
             - {port: '53', protocol: UDP}
             - {port: '53', protocol: TCP}
+          rules:
+            dns:
+              - matchPattern: '*'
     - toEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: observability
@@ -63,6 +74,14 @@ spec:
         - ports:
             - {port: '4318', protocol: TCP}
             - {port: '4317', protocol: TCP}
+    {{- if .Values.externalDomains }}
+    - toFQDNs:
+        {{- range .Values.externalDomains }}
+        - matchName: {{ . | quote }}
+        {{- end }}
+      toPorts:
+        - ports: [{port: '443', protocol: TCP}]
+    {{- end }}
 {{- if .Values.database.enabled }}
 ---
 apiVersion: cilium.io/v2
@@ -71,10 +90,8 @@ metadata:
   name: database-clients-only
 spec:
   endpointSelector:
-    matchExpressions:
-      - key: component
-        operator: In
-        values: [api, worker, cronjob]
+    matchLabels:
+      foundation.makima.sbs/database-client: 'true'
   egress:
     - toEndpoints:
         - matchLabels:

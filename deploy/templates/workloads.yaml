@@ -7,6 +7,7 @@ metadata:
   name: {{ $.Values.app }}-{{ $name }}
 spec:
   schedule: {{ $workload.schedule | quote }}
+  timeZone: {{ $workload.timeZone | default "Etc/UTC" | quote }}
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
   successfulJobsHistoryLimit: 1
@@ -18,7 +19,10 @@ spec:
       ttlSecondsAfterFinished: 3600
       template:
         metadata:
-          labels: {app.kubernetes.io/name: {{ $.Values.app }}, component: {{ $name }}, environment: {{ $.Values.environment }}}
+          {{- with $workload.annotations }}
+          annotations: {{ toJson . }}
+          {{- end }}
+          labels: {app.kubernetes.io/name: {{ $.Values.app }}, component: {{ $name }}, environment: {{ $.Values.environment }}, foundation.makima.sbs/database-client: {{ $workload.database | default false | toString | quote }}}
         spec:
           restartPolicy: Never
           {{- include "application.pod" (dict "root" $ "name" $name "workload" $workload) | nindent 10 }}
@@ -28,7 +32,7 @@ kind: Deployment
 metadata:
   name: {{ $.Values.app }}-{{ $name }}
 spec:
-  replicas: 1
+  replicas: {{ if hasKey $workload "replicas" }}{{ $workload.replicas }}{{ else }}1{{ end }}
   revisionHistoryLimit: 2
   progressDeadlineSeconds: 300
   strategy:
@@ -38,7 +42,10 @@ spec:
     matchLabels: {app.kubernetes.io/name: {{ $.Values.app }}, component: {{ $name }}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: {{ $.Values.app }}, component: {{ $name }}, environment: {{ $.Values.environment }}}
+      {{- with $workload.annotations }}
+      annotations: {{ toJson . }}
+      {{- end }}
+      labels: {app.kubernetes.io/name: {{ $.Values.app }}, component: {{ $name }}, environment: {{ $.Values.environment }}, foundation.makima.sbs/database-client: {{ $workload.database | default false | toString | quote }}}
     spec:
       {{- include "application.pod" (dict "root" $ "name" $name "workload" $workload) | nindent 6 }}
 {{- if $workload.http }}
