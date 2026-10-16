@@ -31,7 +31,10 @@ metadata:
 spec:
   endpointSelector: {}
   ingress:
-    - fromEntities: [ingress]
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: envoy-gateway-system
+            k8s:foundation.makima.sbs/gateway: apps
       toPorts:
         - ports:
             {{- range $name, $workload := .Values.workloads }}
